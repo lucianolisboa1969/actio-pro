@@ -1,0 +1,328 @@
+import { useState } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { CheckCircle2, Circle, ChevronDown, ChevronUp, MapPin, Clock, Star, X } from 'lucide-react'
+import Layout from '@/components/Layout'
+import Modal from '@/components/ui/Modal'
+import RestTimer from '@/components/workout/RestTimer'
+import RunningTimer from '@/components/running/RunningTimer'
+import { TrainingPlan, Exercise, WorkoutLog } from '@/api/entities'
+import { RUNNING_TYPE_LABELS, MUSCLE_GROUP_LABELS } from '@/lib/utils'
+
+// ── Running Log Form ──────────────────────────────────────────────────────────
+function RunningLogForm({ onSubmit, saving }) {
+  const [dist, setDist] = useState('')
+  const [time, setTime] = useState('')
+  const [rpe, setRpe] = useState('')
+  const [notes, setNotes] = useState('')
+
+  function submit(e) {
+    e.preventDefault()
+    onSubmit({
+      distance_km: Number(dist) || null,
+      time_minutes: Number(time) || null,
+      rpe: Number(rpe) || null,
+      notes: notes || null,
+    })
+  }
+
+  return (
+    <form onSubmit={submit} className="space-y-4">
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-xs text-muted mb-1 block">Distância (km)</label>
+          <input type="number" step="0.1" min="0" value={dist} onChange={e => setDist(e.target.value)}
+            placeholder="4.0"
+            className="w-full bg-card border border-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-primary" />
+        </div>
+        <div>
+          <label className="text-xs text-muted mb-1 block">Tempo (min)</label>
+          <input type="number" step="0.1" min="0" value={time} onChange={e => setTime(e.target.value)}
+            placeholder="26.5"
+            className="w-full bg-card border border-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-primary" />
+        </div>
+      </div>
+      <div>
+        <label className="text-xs text-muted mb-1 block">RPE (1–10)</label>
+        <input type="number" min="1" max="10" value={rpe} onChange={e => setRpe(e.target.value)}
+          placeholder="5"
+          className="w-full bg-card border border-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-primary" />
+      </div>
+      <div>
+        <label className="text-xs text-muted mb-1 block">Notas (opcional)</label>
+        <textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)}
+          placeholder="Como foi o treino?"
+          className="w-full bg-card border border-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-primary resize-none" />
+      </div>
+      <button type="submit" disabled={saving}
+        className="w-full py-3 rounded-xl bg-primary text-black font-semibold text-sm hover:bg-primary-dim transition-colors disabled:opacity-50">
+        {saving ? 'Salvando...' : 'Registrar corrida'}
+      </button>
+    </form>
+  )
+}
+
+// ── Strength Exercise Card ────────────────────────────────────────────────────
+function StrengthCard({ exercise, log, onSetDone, onMarkDone, currentSetProgress = 0 }) {
+  const [expanded, setExpanded] = useState(false)
+  const done = log?.completed
+  const setsCompleted = currentSetProgress
+  const totalSets = exercise.sets || 3
+
+  return (
+    <div className={`card transition-all ${done ? 'border-primary/30 bg-primary/5' : ''}`}>
+      <div className="flex items-start gap-3">
+        {exercise.image_url && (
+          <img src={exercise.image_url} alt={exercise.name}
+            className="w-14 h-14 rounded-lg object-cover flex-shrink-0 bg-card" />
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <p className={`font-medium text-sm ${done ? 'line-through text-muted' : 'text-white'}`}>
+              {exercise.name}
+            </p>
+            {done
+              ? <CheckCircle2 size={18} className="text-primary flex-shrink-0 mt-0.5" />
+              : <Circle size={18} className="text-muted flex-shrink-0 mt-0.5" />
+            }
+          </div>
+          <p className="text-xs text-muted mt-0.5">
+            {totalSets} séries · {exercise.reps} reps · {exercise.rest_seconds}s descanso
+            {exercise.weight > 0 ? ` · ${exercise.weight}kg` : ''}
+          </p>
+          {exercise.muscle_group && (
+            <span className="text-xs bg-surface border border-border text-muted rounded px-1.5 py-0.5 mt-1 inline-block">
+              {MUSCLE_GROUP_LABELS[exercise.muscle_group] || exercise.muscle_group}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Sets tracker */}
+      {!done && (
+        <div className="mt-3 pt-3 border-t border-border">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-muted">Séries ({setsCompleted}/{totalSets})</span>
+            <button onClick={() => setExpanded(e => !e)} className="text-muted hover:text-white transition-colors">
+              {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+          </div>
+          <div className="flex gap-2">
+            {Array.from({ length: totalSets }, (_, i) => (
+              <button
+                key={i}
+                onClick={() => onSetDone(exercise, i + 1, totalSets)}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                  i < setsCompleted
+                    ? 'bg-primary/20 border-primary/40 text-primary'
+                    : i === setsCompleted
+                    ? 'bg-surface border-primary/60 text-white hover:bg-primary/10'
+                    : 'bg-surface border-border text-muted'
+                }`}
+              >
+                {i < setsCompleted ? '✓' : `${i + 1}`}
+              </button>
+            ))}
+          </div>
+
+          {setsCompleted >= totalSets && (
+            <button
+              onClick={onMarkDone}
+              className="mt-2 w-full py-2 rounded-lg bg-primary text-black font-semibold text-xs hover:bg-primary-dim transition-colors"
+            >
+              Concluir exercício
+            </button>
+          )}
+
+          {expanded && exercise.notes && (
+            <div className="mt-2 p-2 bg-card rounded-lg">
+              <p className="text-xs text-muted italic">{exercise.notes}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
+export default function DayWorkout() {
+  const { planId, dia } = useParams()
+  const navigate = useNavigate()
+  const qc = useQueryClient()
+  const dayNumber = Number(dia)
+
+  const [restTimer, setRestTimer] = useState(null) // { exercise, currentSet, totalSets }
+  const [logRunModal, setLogRunModal] = useState(null) // exercise
+  const [setProgress, setSetProgress] = useState({}) // { [exerciseId]: setsCompleted }
+
+  const { data: plan } = useQuery({
+    queryKey: ['training_plan', planId],
+    queryFn: () => TrainingPlan.get(planId),
+  })
+
+  const { data: exercises = [] } = useQuery({
+    queryKey: ['exercises_day', planId, dayNumber],
+    queryFn: () => Exercise.listByDay(planId, dayNumber),
+  })
+
+  const { data: todayLogs = [], refetch: refetchLogs } = useQuery({
+    queryKey: ['today_logs', planId, dayNumber],
+    queryFn: () => WorkoutLog.getTodayLogs(planId, dayNumber),
+  })
+
+  const markDone = useMutation({
+    mutationFn: ({ exercise, extra }) => WorkoutLog.markExerciseComplete(
+      planId, exercise.id, dayNumber, plan?.current_week || 1, extra
+    ),
+    onSuccess: () => {
+      refetchLogs()
+      qc.invalidateQueries(['workout_logs', planId])
+    },
+  })
+
+  const logRun = useMutation({
+    mutationFn: ({ exercise, runData }) => WorkoutLog.markExerciseComplete(
+      planId, exercise.id, dayNumber, plan?.current_week || 1, runData
+    ),
+    onSuccess: () => {
+      refetchLogs()
+      qc.invalidateQueries(['workout_logs', planId])
+      qc.invalidateQueries(['run_logs', planId])
+      setLogRunModal(null)
+    },
+  })
+
+  function getLog(exerciseId) {
+    return todayLogs.find(l => l.exercise_id === exerciseId)
+  }
+
+  function handleSetDone(exercise, setNum, totalSets) {
+    const current = setProgress[exercise.id] || 0
+    if (setNum !== current + 1) return // must be sequential
+    const next = setNum
+    setSetProgress(p => ({ ...p, [exercise.id]: next }))
+    // Show rest timer if more sets remain
+    if (setNum < totalSets) {
+      setRestTimer({ exercise, currentSet: setNum, totalSets })
+    }
+  }
+
+  function handleMarkDone(exercise) {
+    const setsCompleted = setProgress[exercise.id] || exercise.sets
+    markDone.mutate({ exercise, extra: { sets_completed: setsCompleted, completed: true } })
+    setSetProgress(p => { const n = { ...p }; delete n[exercise.id]; return n })
+  }
+
+  const strengthExercises = exercises.filter(e => e.exercise_type === 'musculacao')
+  const runningExercises = exercises.filter(e => e.exercise_type === 'corrida')
+  const completedCount = todayLogs.filter(l => l.completed).length
+  const isRunDay = runningExercises.length > 0
+
+  if (!plan) return (
+    <Layout title={`Dia ${dayNumber}`} back={`/plano/${planId}`}>
+      <div className="py-12 text-center text-muted">Carregando...</div>
+    </Layout>
+  )
+
+  return (
+    <Layout title={`Dia ${dayNumber} — Treino`} back={`/plano/${planId}`}>
+      <div className="pt-4 space-y-4">
+        {/* Header status */}
+        <div className="flex items-center justify-between">
+          <p className="text-muted text-sm">
+            {completedCount}/{exercises.length} concluídos
+          </p>
+          {completedCount === exercises.length && exercises.length > 0 && (
+            <span className="text-xs bg-primary/20 text-primary border border-primary/30 rounded-full px-2.5 py-1">
+              Treino completo! 🎉
+            </span>
+          )}
+        </div>
+
+        {/* Running timer section */}
+        {isRunDay && runningExercises.map(ex => (
+          <div key={ex.id} className="space-y-3">
+            <div className="card border-blue-500/20 bg-blue-500/5">
+              <p className="text-muted text-xs mb-0.5">Corrida</p>
+              <p className="font-semibold text-white">{ex.name}</p>
+              <p className="text-xs text-muted">{RUNNING_TYPE_LABELS[ex.running_type]}</p>
+            </div>
+            <RunningTimer exercise={ex} plan={plan} />
+
+            {/* Log run button */}
+            {!getLog(ex.id) ? (
+              <button
+                onClick={() => setLogRunModal(ex)}
+                className="w-full py-3 rounded-xl bg-primary text-black font-semibold text-sm hover:bg-primary-dim transition-colors flex items-center justify-center gap-2"
+              >
+                <MapPin size={16} /> Registrar corrida
+              </button>
+            ) : (
+              <div className="card border-primary/20 bg-primary/5">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 size={16} className="text-primary" />
+                  <span className="text-primary text-sm font-medium">Corrida registrada</span>
+                </div>
+                {getLog(ex.id)?.distance_km && (
+                  <p className="text-muted text-xs mt-1">
+                    {getLog(ex.id).distance_km} km · {getLog(ex.id).time_minutes}min
+                    {getLog(ex.id).rpe ? ` · RPE ${getLog(ex.id).rpe}/10` : ''}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+
+        {/* Strength exercises */}
+        {strengthExercises.length > 0 && (
+          <div className="space-y-3">
+            <h2 className="font-semibold text-white text-sm">Musculação</h2>
+            {strengthExercises.map(ex => (
+              <StrengthCard
+                key={ex.id}
+                exercise={ex}
+                log={getLog(ex.id)}
+                onSetDone={(exercise, setNum, totalSets) => handleSetDone(exercise, setNum, totalSets)}
+                onMarkDone={() => handleMarkDone(ex)}
+                currentSetProgress={setProgress[ex.id] || 0}
+              />
+            ))}
+          </div>
+        )}
+
+        {exercises.length === 0 && (
+          <div className="card text-center py-12">
+            <p className="text-muted">Nenhum exercício neste dia.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Rest Timer overlay */}
+      <RestTimer
+        open={!!restTimer}
+        restSeconds={restTimer?.exercise?.rest_seconds || 60}
+        exerciseName={restTimer?.exercise?.name || ''}
+        currentSet={restTimer?.currentSet || 1}
+        totalSets={restTimer?.totalSets || 1}
+        onDone={() => setRestTimer(null)}
+        onSkip={() => setRestTimer(null)}
+      />
+
+      {/* Running log modal */}
+      <Modal
+        open={!!logRunModal}
+        onClose={() => setLogRunModal(null)}
+        title={`Registrar — ${logRunModal?.name || 'Corrida'}`}
+      >
+        {logRunModal && (
+          <RunningLogForm
+            onSubmit={runData => logRun.mutate({ exercise: logRunModal, runData })}
+            saving={logRun.isPending}
+          />
+        )}
+      </Modal>
+    </Layout>
+  )
+}
