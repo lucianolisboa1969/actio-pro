@@ -52,7 +52,9 @@ export default function RestTimer({ open, restSeconds, exerciseName, currentSet,
           setTimeout(onDone, 300)
           return 0
         }
-        return prev - 1
+        const next = prev - 1
+        if (next <= 5) beep()
+        return next
       })
     }, 1000)
     return () => clearInterval(intervalRef.current)
