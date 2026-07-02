@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Dumbbell } from 'lucide-react'
+import { Dumbbell, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 
@@ -7,6 +7,7 @@ export default function Login() {
   const [mode, setMode] = useState('login') // 'login' | 'register'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState('')
   const [success, setSuccess] = useState('')
@@ -73,12 +74,21 @@ export default function Login() {
             </div>
             <div>
               <label className="text-xs text-muted mb-1 block">Senha</label>
-              <input
-                type="password" required autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                value={password} onChange={e => setPassword(e.target.value)}
-                minLength={6}
-                className="w-full bg-bg border border-border rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-primary"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'} required autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                  value={password} onChange={e => setPassword(e.target.value)}
+                  minLength={6}
+                  className="w-full bg-bg border border-border rounded-lg px-3 py-2.5 pr-10 text-white text-sm focus:outline-none focus:border-primary"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-white transition-colors"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
             </div>
             <button type="submit" disabled={loading}
               className="w-full py-3 rounded-xl bg-primary text-black font-semibold hover:bg-primary-dim transition-colors disabled:opacity-50 mt-1">
