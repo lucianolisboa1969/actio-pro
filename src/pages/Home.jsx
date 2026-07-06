@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Flame, TrendingUp, Dumbbell, Calendar, ChevronRight, Trophy, Activity, Zap } from 'lucide-react'
+import { Flame, TrendingUp, Dumbbell, Calendar, ChevronRight, Trophy, Activity, Zap, CheckCircle2 } from 'lucide-react'
 import Layout from '@/components/Layout'
 import RunningStats from '@/components/running/RunningStats'
 import RunningInsights from '@/components/running/RunningInsights'
@@ -52,6 +52,13 @@ export default function Home() {
 
   // Days grouped
   const dayNumbers = [...new Set(exercises.map(e => e.day_number))].sort((a, b) => a - b)
+
+  // Next day after current
+  const nextDay = dayNumbers.find(d => d > currentDay) || dayNumbers[0]
+  const nextDayExercises = nextDay && nextDay !== currentDay
+    ? exercises.filter(e => e.day_number === nextDay)
+    : []
+  const allTodayDone = todayExercises.length > 0 && todayDone >= todayExercises.length
 
   const [runSection, setRunSection] = useState('stats') // 'stats' | 'insights' | 'history'
 
@@ -149,25 +156,43 @@ export default function Home() {
 
         {/* Today's workout CTA */}
         {todayExercises.length > 0 && (
-          <div className="card border-primary/20 bg-primary/5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-muted text-xs">Treino de Hoje — Dia {currentDay}</p>
-                <p className="text-white font-medium text-sm mt-0.5">
-                  {todayExercises.filter(e => e.exercise_type === 'corrida').length > 0
-                    ? `Corrida — ${RUNNING_TYPE_LABELS[todayExercises.find(e => e.exercise_type === 'corrida')?.running_type]}`
-                    : `Musculação — ${todayExercises.length} exercícios`
-                  }
-                </p>
+          allTodayDone ? (
+            <div className="card border-primary/20 bg-primary/5">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle2 size={17} className="text-primary" />
+                <p className="text-primary font-semibold text-sm">Dia {currentDay} completo! 🎉</p>
               </div>
-              <button
-                onClick={() => navigate(`/treino/${activePlan.id}/${currentDay}`)}
-                className="bg-primary text-black font-semibold px-4 py-2 rounded-xl text-sm hover:bg-primary-dim transition-colors flex items-center gap-1"
-              >
-                Iniciar Treino <ChevronRight size={14} />
-              </button>
+              {nextDayExercises.length > 0 && (
+                <div className="mt-1 pt-2 border-t border-border/40">
+                  <p className="text-muted text-xs">Próximo — Dia {nextDay}</p>
+                  <p className="text-white text-sm font-medium mt-0.5">
+                    {nextDayExercises.filter(e => e.exercise_type === 'corrida').length > 0
+                      ? `Corrida — ${RUNNING_TYPE_LABELS[nextDayExercises.find(e => e.exercise_type === 'corrida')?.running_type]}`
+                      : `Musculação — ${nextDayExercises.length} exercícios`}
+                  </p>
+                </div>
+              )}
             </div>
-          </div>
+          ) : (
+            <div className="card border-primary/20 bg-primary/5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-muted text-xs">Treino de Hoje — Dia {currentDay}</p>
+                  <p className="text-white font-medium text-sm mt-0.5">
+                    {todayExercises.filter(e => e.exercise_type === 'corrida').length > 0
+                      ? `Corrida — ${RUNNING_TYPE_LABELS[todayExercises.find(e => e.exercise_type === 'corrida')?.running_type]}`
+                      : `Musculação — ${todayExercises.length} exercícios`}
+                  </p>
+                </div>
+                <button
+                  onClick={() => navigate(`/treino/${activePlan.id}/${currentDay}`)}
+                  className="bg-primary text-black font-semibold px-4 py-2 rounded-xl text-sm hover:bg-primary-dim transition-colors flex items-center gap-1"
+                >
+                  {todayDone > 0 ? 'Continuar' : 'Iniciar Treino'} <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          )
         )}
 
         {/* Running section */}
