@@ -1,26 +1,30 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle2, Circle, ChevronDown, ChevronUp, MapPin, Clock, Star, X } from 'lucide-react'
+import { CheckCircle2, Circle, ChevronDown, ChevronUp, MapPin, Pencil } from 'lucide-react'
 import Layout from '@/components/Layout'
 import Modal from '@/components/ui/Modal'
 import RestTimer from '@/components/workout/RestTimer'
 import RunningTimer from '@/components/running/RunningTimer'
 import { TrainingPlan, Exercise, WorkoutLog } from '@/api/entities'
-import { RUNNING_TYPE_LABELS, MUSCLE_GROUP_LABELS } from '@/lib/utils'
+import { RUNNING_TYPE_LABELS, MUSCLE_GROUP_LABELS, formatPace } from '@/lib/utils'
 
 // ── Running Log Form ──────────────────────────────────────────────────────────
-function RunningLogForm({ onSubmit, saving }) {
-  const [dist, setDist] = useState('')
-  const [time, setTime] = useState('')
-  const [rpe, setRpe] = useState('')
-  const [notes, setNotes] = useState('')
+function RunningLogForm({ onSubmit, saving, initialValues = {} }) {
+  const [dist, setDist] = useState(initialValues.distance_km?.toString() || '')
+  const [time, setTime] = useState(initialValues.time_minutes?.toString() || '')
+  const [rpe, setRpe] = useState(initialValues.rpe?.toString() || '')
+  const [notes, setNotes] = useState(initialValues.notes || '')
+
+  const distNum = Number(dist)
+  const timeNum = Number(time)
+  const pace = distNum > 0 && timeNum > 0 ? formatPace(timeNum / distNum) : null
 
   function submit(e) {
     e.preventDefault()
     onSubmit({
-      distance_km: Number(dist) || null,
-      time_minutes: Number(time) || null,
+      distance_km: distNum || null,
+      time_minutes: timeNum || null,
       rpe: Number(rpe) || null,
       notes: notes || null,
     })
@@ -42,18 +46,36 @@ function RunningLogForm({ onSubmit, saving }) {
             className="w-full bg-card border border-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-primary" />
         </div>
       </div>
+
+      {/* Pace — auto calculated */}
+      {pace ? (
+        <div className="flex items-center justify-between px-3 py-2.5 bg-primary/10 border border-primary/20 rounded-lg">
+          <span className="text-xs text-muted">Pace calculado</span>
+          <span className="text-white font-bold">{pace} <span className="text-muted font-normal text-xs">/km</span></span>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between px-3 py-2.5 bg-surface border border-border rounded-lg">
+          <span className="text-xs text-muted">Pace calculado</span>
+          <span className="text-muted text-sm">—</span>
+        </div>
+      )}
+
       <div>
-        <label className="text-xs text-muted mb-1 block">RPE (1–10)</label>
+        <label className="text-xs text-muted mb-1 block">
+          RPE (1–10) <span className="text-muted/60">— esforço percebido: 1=fácil, 10=máximo</span>
+        </label>
         <input type="number" min="1" max="10" value={rpe} onChange={e => setRpe(e.target.value)}
           placeholder="5"
           className="w-full bg-card border border-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-primary" />
       </div>
+
       <div>
         <label className="text-xs text-muted mb-1 block">Notas (opcional)</label>
         <textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)}
           placeholder="Como foi o treino?"
           className="w-full bg-card border border-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-primary resize-none" />
       </div>
+
       <button type="submit" disabled={saving}
         className="w-full py-3 rounded-xl bg-primary text-black font-semibold text-sm hover:bg-primary-dim transition-colors disabled:opacity-50">
         {saving ? 'Salvando...' : 'Registrar corrida'}
@@ -63,7 +85,7 @@ function RunningLogForm({ onSubmit, saving }) {
 }
 
 // ── Strength Exercise Card ────────────────────────────────────────────────────
-function StrengthCard({ exercise, log, onSetDone, onMarkDone, currentSetProgress = 0 }) {
+function StrengthCard({ exercise, log, onSetDone, onMarkDone, onRedo, currentSetProgress = 0 }) {
   const [expanded, setExpanded] = useState(false)
   const done = log?.completed
   const setsCompleted = currentSetProgress
@@ -97,6 +119,18 @@ function StrengthCard({ exercise, log, onSetDone, onMarkDone, currentSetProgress
           )}
         </div>
       </div>
+
+      {/* Completed: show redo button */}
+      {done && (
+        <div className="mt-2 pt-2 border-t border-border/30 flex justify-end">
+          <button
+            onClick={onRedo}
+            className="text-xs text-muted hover:text-white transition-colors flex items-center gap-1"
+          >
+            <Pencil size={12} /> Editar / Refazer
+          </button>
+        </div>
+      )}
 
       {/* Sets tracker */}
       {!done && (
@@ -152,9 +186,10 @@ export default function DayWorkout() {
   const qc = useQueryClient()
   const dayNumber = Number(dia)
 
-  const [restTimer, setRestTimer] = useState(null) // { exercise, currentSet, totalSets }
-  const [logRunModal, setLogRunModal] = useState(null) // exercise
-  const [setProgress, setSetProgress] = useState({}) // { [exerciseId]: setsCompleted }
+  const [restTimer, setRestTimer] = useState(null)
+  const [logRunModal, setLogRunModal] = useState(null)   // exercise being logged
+  const [editInitialValues, setEditInitialValues] = useState({}) // pre-fill values for edit
+  const [setProgress, setSetProgress] = useState({})
 
   const { data: plan } = useQuery({
     queryKey: ['training_plan', planId],
@@ -190,6 +225,15 @@ export default function DayWorkout() {
       qc.invalidateQueries(['workout_logs', planId])
       qc.invalidateQueries(['run_logs', planId])
       setLogRunModal(null)
+      setEditInitialValues({})
+    },
+  })
+
+  const deleteLog = useMutation({
+    mutationFn: (logId) => WorkoutLog.delete(logId),
+    onSuccess: () => {
+      refetchLogs()
+      qc.invalidateQueries(['workout_logs', planId])
     },
   })
 
@@ -199,10 +243,9 @@ export default function DayWorkout() {
 
   function handleSetDone(exercise, setNum, totalSets) {
     const current = setProgress[exercise.id] || 0
-    if (setNum !== current + 1) return // must be sequential
+    if (setNum !== current + 1) return
     const next = setNum
     setSetProgress(p => ({ ...p, [exercise.id]: next }))
-    // Show rest timer if more sets remain
     if (setNum < totalSets) {
       setRestTimer({ exercise, currentSet: setNum, totalSets })
     }
@@ -212,6 +255,18 @@ export default function DayWorkout() {
     const setsCompleted = setProgress[exercise.id] || exercise.sets
     markDone.mutate({ exercise, extra: { sets_completed: setsCompleted, completed: true } })
     setSetProgress(p => { const n = { ...p }; delete n[exercise.id]; return n })
+  }
+
+  function handleRedoStrength(exercise) {
+    const log = getLog(exercise.id)
+    if (log) deleteLog.mutate(log.id)
+    setSetProgress(p => ({ ...p, [exercise.id]: 0 }))
+  }
+
+  function handleEditRun(exercise) {
+    const log = getLog(exercise.id)
+    setEditInitialValues(log || {})
+    setLogRunModal(exercise)
   }
 
   const strengthExercises = exercises.filter(e => e.exercise_type === 'musculacao')
@@ -240,7 +295,7 @@ export default function DayWorkout() {
           )}
         </div>
 
-        {/* Running timer section */}
+        {/* Running section */}
         {isRunDay && runningExercises.map(ex => (
           <div key={ex.id} className="space-y-3">
             <div className="card border-blue-500/20 bg-blue-500/5">
@@ -250,26 +305,41 @@ export default function DayWorkout() {
             </div>
             <RunningTimer exercise={ex} plan={plan} />
 
-            {/* Log run button */}
+            {/* Log / edit run button */}
             {!getLog(ex.id) ? (
               <button
-                onClick={() => setLogRunModal(ex)}
+                onClick={() => { setEditInitialValues({}); setLogRunModal(ex) }}
                 className="w-full py-3 rounded-xl bg-primary text-black font-semibold text-sm hover:bg-primary-dim transition-colors flex items-center justify-center gap-2"
               >
                 <MapPin size={16} /> Registrar corrida
               </button>
             ) : (
               <div className="card border-primary/20 bg-primary/5">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 size={16} className="text-primary" />
-                  <span className="text-primary text-sm font-medium">Corrida registrada</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 size={16} className="text-primary" />
+                    <span className="text-primary text-sm font-medium">Corrida registrada</span>
+                  </div>
+                  <button
+                    onClick={() => handleEditRun(ex)}
+                    className="text-muted hover:text-white transition-colors flex items-center gap-1 text-xs"
+                  >
+                    <Pencil size={13} /> Editar
+                  </button>
                 </div>
-                {getLog(ex.id)?.distance_km && (
-                  <p className="text-muted text-xs mt-1">
-                    {getLog(ex.id).distance_km} km · {getLog(ex.id).time_minutes}min
-                    {getLog(ex.id).rpe ? ` · RPE ${getLog(ex.id).rpe}/10` : ''}
-                  </p>
-                )}
+                {getLog(ex.id)?.distance_km && (() => {
+                  const log = getLog(ex.id)
+                  const pace = log.distance_km > 0 && log.time_minutes > 0
+                    ? formatPace(log.time_minutes / log.distance_km)
+                    : null
+                  return (
+                    <p className="text-muted text-xs mt-1">
+                      {log.distance_km} km · {log.time_minutes} min
+                      {pace ? ` · ${pace}/km` : ''}
+                      {log.rpe ? ` · RPE ${log.rpe}/10` : ''}
+                    </p>
+                  )
+                })()}
               </div>
             )}
           </div>
@@ -286,6 +356,7 @@ export default function DayWorkout() {
                 log={getLog(ex.id)}
                 onSetDone={(exercise, setNum, totalSets) => handleSetDone(exercise, setNum, totalSets)}
                 onMarkDone={() => handleMarkDone(ex)}
+                onRedo={() => handleRedoStrength(ex)}
                 currentSetProgress={setProgress[ex.id] || 0}
               />
             ))}
@@ -313,11 +384,13 @@ export default function DayWorkout() {
       {/* Running log modal */}
       <Modal
         open={!!logRunModal}
-        onClose={() => setLogRunModal(null)}
+        onClose={() => { setLogRunModal(null); setEditInitialValues({}) }}
         title={`Registrar — ${logRunModal?.name || 'Corrida'}`}
       >
         {logRunModal && (
           <RunningLogForm
+            key={logRunModal.id + JSON.stringify(editInitialValues)}
+            initialValues={editInitialValues}
             onSubmit={runData => logRun.mutate({ exercise: logRunModal, runData })}
             saving={logRun.isPending}
           />
