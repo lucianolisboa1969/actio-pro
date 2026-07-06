@@ -73,7 +73,7 @@ export const GOAL_LABELS = {
   resistencia: 'Resistência',
   emagrecimento: 'Emagrecimento',
   condicionamento: 'Condicionamento',
-   meia_maratona: 'Meia Maratona',
+  meia_maratona: 'Meia Maratona',
 }
 
 export const MUSCLE_GROUP_LABELS = {
