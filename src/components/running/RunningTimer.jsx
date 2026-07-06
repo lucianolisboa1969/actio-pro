@@ -2,8 +2,13 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { Play, Square, RotateCcw } from 'lucide-react'
 import { formatSeconds, buildTimerSteps, ZONE_LABELS, getSpeedRange, ZONE_BAR } from '@/lib/utils'
 
-const RADIUS = 45
+// Inner ring (current step progress)
+const RADIUS = 43
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS
+
+// Outer ring (total workout progress)
+const OUTER_RADIUS = 48
+const OUTER_CIRCUMFERENCE = 2 * Math.PI * OUTER_RADIUS
 
 function beep(freq = 660) {
   try {
@@ -64,18 +69,34 @@ export default function RunningTimer({ exercise, plan }) {
           setTimeout(() => setRunning(true), 100)
           return 0
         }
-        return prev - 1
+        const next = prev - 1
+        if (next <= 5) {
+          beep()
+          setTimeout(beep, 500) // second beep at half-second mark
+        }
+        return next
       })
     }, 1000)
     return () => clearInterval(intervalRef.current)
   }, [running, stepIdx, steps])
 
+  // Inner ring: current step progress
   const progress = currentStep ? timeLeft / currentStep.duration_sec : 0
   const dashOffset = CIRCUMFERENCE * (1 - progress)
   const zoneColor = currentStep ? (ZONE_BAR[currentStep.zone] || '#4ade80') : '#4ade80'
 
-  // Build segment bar visualization
-  const barSteps = steps.slice(0, 20) // max 20 bars for display
+  // Outer ring: total workout progress
+  const totalDurationSec = steps.reduce((sum, s) => sum + s.duration_sec, 0)
+  const elapsedSec = steps.slice(0, stepIdx).reduce((sum, s) => sum + s.duration_sec, 0)
+    + (currentStep ? currentStep.duration_sec - timeLeft : 0)
+  const totalProgress = totalDurationSec > 0
+    ? (finished ? 1 : elapsedSec / totalDurationSec)
+    : 0
+  const outerDashOffset = OUTER_CIRCUMFERENCE * (1 - totalProgress)
+  const outerColor = currentStep ? SECTION_COLORS[currentStep.section] : '#4ade80'
+
+  // Segment bar
+  const barSteps = steps.slice(0, 20)
 
   if (!steps.length) {
     return (
@@ -111,11 +132,26 @@ export default function RunningTimer({ exercise, plan }) {
         </div>
       )}
 
-      {/* Timer circle */}
+      {/* Timer circles */}
       <div className="card flex flex-col items-center gap-4">
-        <div className="relative w-40 h-40">
+        <div className="relative w-44 h-44">
           <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+            {/* Outer ring track */}
+            <circle cx="50" cy="50" r={OUTER_RADIUS} fill="none" stroke="#1e2d42" strokeWidth="3" />
+            {/* Outer ring progress — total workout, color by section */}
+            <circle
+              cx="50" cy="50" r={OUTER_RADIUS}
+              fill="none"
+              stroke={finished ? '#4ade80' : outerColor}
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeDasharray={OUTER_CIRCUMFERENCE}
+              strokeDashoffset={outerDashOffset}
+              style={{ transition: 'stroke-dashoffset 0.9s linear, stroke 0.4s ease' }}
+            />
+            {/* Inner ring track */}
             <circle cx="50" cy="50" r={RADIUS} fill="none" stroke="#1e2d42" strokeWidth="7" />
+            {/* Inner ring progress — current step */}
             <circle
               cx="50" cy="50" r={RADIUS}
               fill="none"
@@ -168,6 +204,13 @@ export default function RunningTimer({ exercise, plan }) {
             {running ? 'Parar' : 'Iniciar'}
           </button>
         </div>
+
+        {/* Total progress label */}
+        {!finished && totalDurationSec > 0 && (
+          <p className="text-xs text-muted">
+            Treino: {Math.round(totalProgress * 100)}% · {formatSeconds(Math.max(0, totalDurationSec - elapsedSec))} restantes
+          </p>
+        )}
       </div>
 
       {/* Segment visualization */}
@@ -178,8 +221,9 @@ export default function RunningTimer({ exercise, plan }) {
               key={i}
               className="flex-1 rounded-sm transition-opacity"
               style={{
-                background: i === stepIdx && running ? ZONE_BAR[step.zone] : ZONE_BAR[step.zone] + (i < stepIdx ? 'ff' : '66'),
+                background: ZONE_BAR[step.zone] + (i < stepIdx ? 'ff' : '66'),
                 height: step.zone === 'forte' ? '100%' : step.zone === 'moderado' ? '70%' : '40%',
+                outline: i === stepIdx && running ? `2px solid ${ZONE_BAR[step.zone]}` : 'none',
               }}
             />
           ))}
