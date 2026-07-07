@@ -9,7 +9,7 @@ import RunningTimer from '@/components/running/RunningTimer'
 import { TrainingPlan, Exercise, WorkoutLog } from '@/api/entities'
 import { RUNNING_TYPE_LABELS, MUSCLE_GROUP_LABELS, formatPace } from '@/lib/utils'
 
-// ââ Running Log Form ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── Running Log Form ──────────────────────────────────────────────────────────
 function RunningLogForm({ onSubmit, saving, initialValues = {} }) {
   const [dist, setDist] = useState(initialValues.distance_km?.toString() || '')
   const _iv = initialValues.time_minutes
@@ -38,7 +38,7 @@ function RunningLogForm({ onSubmit, saving, initialValues = {} }) {
     <form onSubmit={submit} className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="text-xs text-muted mb-1 block">DistÃ¢ncia (km)</label>
+          <label className="text-xs text-muted mb-1 block">Distância (km)</label>
           <input type="number" step="0.1" min="0" value={dist} onChange={e => setDist(e.target.value)}
             placeholder="4.0"
             className="w-full bg-card border border-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-primary" />
@@ -58,7 +58,7 @@ function RunningLogForm({ onSubmit, saving, initialValues = {} }) {
         </div>
       </div>
 
-      {/* Pace â auto calculated */}
+      {/* Pace — auto calculated */}
       {pace ? (
         <div className="flex items-center justify-between px-3 py-2.5 bg-primary/10 border border-primary/20 rounded-lg">
           <span className="text-xs text-muted">Pace calculado</span>
@@ -67,13 +67,13 @@ function RunningLogForm({ onSubmit, saving, initialValues = {} }) {
       ) : (
         <div className="flex items-center justify-between px-3 py-2.5 bg-surface border border-border rounded-lg">
           <span className="text-xs text-muted">Pace calculado</span>
-          <span className="text-muted text-sm">â</span>
+          <span className="text-muted text-sm">—</span>
         </div>
       )}
 
       <div>
         <label className="text-xs text-muted mb-1 block">
-          RPE (1â10) <span className="text-muted/60">â esforÃ§o percebido: 1=fÃ¡cil, 10=mÃ¡ximo</span>
+          RPE (1–10) <span className="text-muted/60">— esforço percebido: 1=fácil, 10=máximo</span>
         </label>
         <input type="number" min="1" max="10" value={rpe} onChange={e => setRpe(e.target.value)}
           placeholder="5"
@@ -95,7 +95,7 @@ function RunningLogForm({ onSubmit, saving, initialValues = {} }) {
   )
 }
 
-// ââ Strength Exercise Card ââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── Strength Exercise Card ────────────────────────────────────────────────────
 function StrengthCard({ exercise, log, onSetDone, onMarkDone, onRedo, currentSetProgress = 0 }) {
   const [expanded, setExpanded] = useState(false)
   const done = log?.completed
@@ -120,8 +120,8 @@ function StrengthCard({ exercise, log, onSetDone, onMarkDone, onRedo, currentSet
             }
           </div>
           <p className="text-xs text-muted mt-0.5">
-            {totalSets} sÃ©ries Â· {exercise.reps} reps Â· {exercise.rest_seconds}s descanso
-            {exercise.weight > 0 ? ` Â· ${exercise.weight}kg` : ''}
+            {totalSets} séries · {exercise.reps} reps · {exercise.rest_seconds}s descanso
+            {exercise.weight > 0 ? ` · ${exercise.weight}kg` : ''}
           </p>
           {exercise.muscle_group && (
             <span className="text-xs bg-surface border border-border text-muted rounded px-1.5 py-0.5 mt-1 inline-block">
@@ -147,7 +147,7 @@ function StrengthCard({ exercise, log, onSetDone, onMarkDone, onRedo, currentSet
       {!done && (
         <div className="mt-3 pt-3 border-t border-border">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-muted">SÃ©ries ({setsCompleted}/{totalSets})</span>
+            <span className="text-xs text-muted">Séries ({setsCompleted}/{totalSets})</span>
             <button onClick={() => setExpanded(e => !e)} className="text-muted hover:text-white transition-colors">
               {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             </button>
@@ -165,7 +165,7 @@ function StrengthCard({ exercise, log, onSetDone, onMarkDone, onRedo, currentSet
                     : 'bg-surface border-border text-muted'
                 }`}
               >
-                {i < setsCompleted ? 'â' : `${i + 1}`}
+                {i < setsCompleted ? '✓' : `${i + 1}`}
               </button>
             ))}
           </div>
@@ -175,7 +175,7 @@ function StrengthCard({ exercise, log, onSetDone, onMarkDone, onRedo, currentSet
               onClick={onMarkDone}
               className="mt-2 w-full py-2 rounded-lg bg-primary text-black font-semibold text-xs hover:bg-primary-dim transition-colors"
             >
-              Concluir exercÃ­cio
+              Concluir exercício
             </button>
           )}
 
@@ -190,7 +190,7 @@ function StrengthCard({ exercise, log, onSetDone, onMarkDone, onRedo, currentSet
   )
 }
 
-// ââ Main Page âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── Main Page ─────────────────────────────────────────────────────────────────
 export default function DayWorkout() {
   const { planId, dia } = useParams()
   const navigate = useNavigate()
@@ -292,16 +292,16 @@ export default function DayWorkout() {
   )
 
   return (
-    <Layout title={`Dia ${dayNumber} â Treino`} back={`/plano/${planId}`}>
+    <Layout title={`Dia ${dayNumber} — Treino`} back={`/plano/${planId}`}>
       <div className="pt-4 space-y-4">
         {/* Header status */}
         <div className="flex items-center justify-between">
           <p className="text-muted text-sm">
-            {completedCount}/{exercises.length} concluÃ­dos
+            {completedCount}/{exercises.length} concluídos
           </p>
           {completedCount === exercises.length && exercises.length > 0 && (
             <span className="text-xs bg-primary/20 text-primary border border-primary/30 rounded-full px-2.5 py-1">
-              Treino completo! ð
+              Treino completo! 🎉
             </span>
           )}
         </div>
@@ -345,9 +345,9 @@ export default function DayWorkout() {
                     : null
                   return (
                     <p className="text-muted text-xs mt-1">
-                      {log.distance_km} km Â· {log.time_minutes} min
-                      {pace ? ` Â· ${pace}/km` : ''}
-                      {log.rpe ? ` Â· RPE ${log.rpe}/10` : ''}
+                      {log.distance_km} km · {log.time_minutes} min
+                      {pace ? ` · ${pace}/km` : ''}
+                      {log.rpe ? ` · RPE ${log.rpe}/10` : ''}
                     </p>
                   )
                 })()}
@@ -359,7 +359,7 @@ export default function DayWorkout() {
         {/* Strength exercises */}
         {strengthExercises.length > 0 && (
           <div className="space-y-3">
-            <h2 className="font-semibold text-white text-sm">MusculaÃ§Ã£o</h2>
+            <h2 className="font-semibold text-white text-sm">Musculação</h2>
             {strengthExercises.map(ex => (
               <StrengthCard
                 key={ex.id}
@@ -376,7 +376,7 @@ export default function DayWorkout() {
 
         {exercises.length === 0 && (
           <div className="card text-center py-12">
-            <p className="text-muted">Nenhum exercÃ­cio neste dia.</p>
+            <p className="text-muted">Nenhum exercício neste dia.</p>
           </div>
         )}
       </div>
@@ -396,7 +396,7 @@ export default function DayWorkout() {
       <Modal
         open={!!logRunModal}
         onClose={() => { setLogRunModal(null); setEditInitialValues({}) }}
-        title={`Registrar â ${logRunModal?.name || 'Corrida'}`}
+        title={`Registrar — ${logRunModal?.name || 'Corrida'}`}
       >
         {logRunModal && (
           <RunningLogForm
