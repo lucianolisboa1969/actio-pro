@@ -46,7 +46,25 @@ export default function Home() {
   const totalExercises = exercises.length
   const daysPerWeek = activePlan?.days_per_week || 0
 
-  const currentDay = activePlan?.current_day || 1
+  // Qual dia foi trabalhado hoje?
+  const activeTodayDay = (() => {
+    for (const day of dayNumbers) {
+      const dayExs = exercises.filter(e => e.day_number === day)
+      if (dayExs.some(ex => todayLogs.some(l => l.exercise_id === ex.id))) return day
+    }
+    return null
+  })()
+  // Dias historicamente completos (todos os exercícios com pelo menos 1 log)
+  const historicallyCompletedDays = new Set(
+    dayNumbers.filter(day => {
+      const dayExs = exercises.filter(e => e.day_number === day)
+      return dayExs.length > 0 && dayExs.every(ex => logs.some(l => l.exercise_id === ex.id))
+    })
+  )
+  // Dia atual: se treinou hoje → mostra esse dia; senão → primeiro dia incompleto
+  const currentDay = activeTodayDay ||
+    dayNumbers.find(d => !historicallyCompletedDays.has(d)) ||
+    dayNumbers[dayNumbers.length - 1] || 1
   const todayExercises = exercises.filter(e => e.day_number === currentDay)
   const todayDone = todayLogs.filter(l => todayExercises.some(e => e.id === l.exercise_id)).length
 
@@ -68,7 +86,7 @@ export default function Home() {
         <div className="pt-6 text-center">
           <Trophy size={40} className="text-muted mx-auto mb-3" />
           <p className="text-white font-semibold mb-1">Nenhum plano encontrado</p>
-          <p className="text-muted text-sm">Seu plano de treino aparecerá aqui.</p>
+          <p className="text-muted text-sm">Seu plano de treino aparecerÃ¡ aqui.</p>
         </div>
       </Layout>
     )
@@ -78,7 +96,7 @@ export default function Home() {
     <Layout title="Meus Treinos">
       <div className="pt-4 space-y-4">
         {/* Sub-header */}
-        <p className="text-muted text-sm">Gerencie seus planos e exercícios</p>
+        <p className="text-muted text-sm">Gerencie seus planos e exercÃ­cios</p>
 
         {/* Stats grid */}
         <div className="grid grid-cols-2 gap-3">
@@ -88,7 +106,7 @@ export default function Home() {
               <Flame size={16} className="text-orange-400" />
             </div>
             <p className="text-3xl font-bold text-white">{todayDone}</p>
-            <p className="text-muted text-xs mt-0.5">de {todayExercises.length} exercícios</p>
+            <p className="text-muted text-xs mt-0.5">de {todayExercises.length} exercÃ­cios</p>
           </div>
 
           <div className="bg-card-green border border-green-900/30 rounded-xl p-4">
@@ -97,12 +115,12 @@ export default function Home() {
               <TrendingUp size={16} className="text-primary" />
             </div>
             <p className="text-3xl font-bold text-primary">{weekLogs.length}</p>
-            <p className="text-muted text-xs mt-0.5">de {totalExercises} exercícios</p>
+            <p className="text-muted text-xs mt-0.5">de {totalExercises} exercÃ­cios</p>
           </div>
 
           <div className="bg-card-teal border border-teal-900/30 rounded-xl p-4">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-muted uppercase tracking-wide">Total Exercícios</span>
+              <span className="text-xs text-muted uppercase tracking-wide">Total ExercÃ­cios</span>
               <Dumbbell size={16} className="text-blue-400" />
             </div>
             <p className="text-3xl font-bold text-white">{totalExercises}</p>
@@ -160,15 +178,15 @@ export default function Home() {
             <div className="card border-primary/20 bg-primary/5">
               <div className="flex items-center gap-2 mb-2">
                 <CheckCircle2 size={17} className="text-primary" />
-                <p className="text-primary font-semibold text-sm">Dia {currentDay} completo! 🎉</p>
+                <p className="text-primary font-semibold text-sm">Dia {currentDay} completo! ð</p>
               </div>
               {nextDayExercises.length > 0 && (
                 <div className="mt-1 pt-2 border-t border-border/40">
-                  <p className="text-muted text-xs">Próximo — Dia {nextDay}</p>
+                  <p className="text-muted text-xs">PrÃ³ximo â Dia {nextDay}</p>
                   <p className="text-white text-sm font-medium mt-0.5">
                     {nextDayExercises.filter(e => e.exercise_type === 'corrida').length > 0
-                      ? `Corrida — ${RUNNING_TYPE_LABELS[nextDayExercises.find(e => e.exercise_type === 'corrida')?.running_type]}`
-                      : `Musculação — ${nextDayExercises.length} exercícios`}
+                      ? `Corrida â ${RUNNING_TYPE_LABELS[nextDayExercises.find(e => e.exercise_type === 'corrida')?.running_type]}`
+                      : `MusculaÃ§Ã£o â ${nextDayExercises.length} exercÃ­cios`}
                   </p>
                 </div>
               )}
@@ -177,11 +195,11 @@ export default function Home() {
             <div className="card border-primary/20 bg-primary/5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-muted text-xs">Treino de Hoje — Dia {currentDay}</p>
+                  <p className="text-muted text-xs">Treino de Hoje â Dia {currentDay}</p>
                   <p className="text-white font-medium text-sm mt-0.5">
                     {todayExercises.filter(e => e.exercise_type === 'corrida').length > 0
-                      ? `Corrida — ${RUNNING_TYPE_LABELS[todayExercises.find(e => e.exercise_type === 'corrida')?.running_type]}`
-                      : `Musculação — ${todayExercises.length} exercícios`}
+                      ? `Corrida â ${RUNNING_TYPE_LABELS[todayExercises.find(e => e.exercise_type === 'corrida')?.running_type]}`
+                      : `MusculaÃ§Ã£o â ${todayExercises.length} exercÃ­cios`}
                   </p>
                 </div>
                 <button
@@ -199,7 +217,7 @@ export default function Home() {
         <div>
           <div className="flex items-center gap-2 mb-3">
             <Activity size={16} className="text-primary" />
-            <h2 className="font-semibold text-white text-sm">Evolução Corrida</h2>
+            <h2 className="font-semibold text-white text-sm">EvoluÃ§Ã£o Corrida</h2>
           </div>
 
           {runLogs.length === 0 ? (
@@ -222,7 +240,7 @@ export default function Home() {
                         : 'bg-surface border-border text-muted hover:text-white'
                     }`}
                   >
-                    {s === 'stats' ? 'Fase' : s === 'insights' ? 'Insights' : 'Histórico'}
+                    {s === 'stats' ? 'Fase' : s === 'insights' ? 'Insights' : 'HistÃ³rico'}
                   </button>
                 ))}
               </div>
@@ -232,8 +250,8 @@ export default function Home() {
               {runSection === 'stats' && (
                 <div className="space-y-3">
                   {[
-                    { label: 'Distância da Fase', val: `${runLogs.reduce((s,l) => s + Number(l.distance_km||0), 0).toFixed(1)} km`, sub: `${runLogs.filter(l=>l.distance_km>0).length} corrida(s)` },
-                    { label: 'Maior Distância', val: `${Math.max(...runLogs.filter(l=>l.distance_km>0).map(l=>Number(l.distance_km)), 0)} km`, sub: 'na fase atual' },
+                    { label: 'DistÃ¢ncia da Fase', val: `${runLogs.reduce((s,l) => s + Number(l.distance_km||0), 0).toFixed(1)} km`, sub: `${runLogs.filter(l=>l.distance_km>0).length} corrida(s)` },
+                    { label: 'Maior DistÃ¢ncia', val: `${Math.max(...runLogs.filter(l=>l.distance_km>0).map(l=>Number(l.distance_km)), 0)} km`, sub: 'na fase atual' },
                   ].map(s => (
                     <div key={s.label} className="card">
                       <p className="text-muted text-xs">{s.label}</p>
